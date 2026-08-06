@@ -9,3 +9,4 @@ diff --git a/src/include/aligned_alloc.h b/src/include/aligned_alloc.h
    // aligned_alloc() requires that __size is a multiple of __alignment,
    // but for C++ [new.delete.general], only states "if the value of an
    // alignment argument passed to any of these functions is not a valid
+   // alignment value, the behavior is undefined".
