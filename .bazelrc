@@ -30,9 +30,9 @@ common:macos --test_env=PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr
 
 # Build x86_64 Darwin artifacts that can run on macOS Mojave. This must be a
 # compiler and linker flag (instead of only an environment variable) so the
-# hermetic LLVM actions see the deployment target. In particular, libc++ uses
-# the compiler-provided minimum-version macro to avoid aligned_alloc(), which
-# was not added to macOS until 10.15.
+# hermetic LLVM actions see the deployment target. The pinned libc++ source is
+# separately patched to avoid aligned_alloc(), which was not added to macOS
+# until 10.15, because runtime transitions do not reliably inherit --copt.
 common:macos-x86_64-10-14 --copt=-mmacosx-version-min=10.14
 common:macos-x86_64-10-14 --linkopt=-mmacosx-version-min=10.14
 

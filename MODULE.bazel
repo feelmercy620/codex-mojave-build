@@ -507,6 +507,8 @@ git_repository(
     name = "rusty_v8_libcxx",
     build_file = "//third_party/v8:libcxx.BUILD.bazel",
     commit = "99457fa555797f8c5ac3c076ca288d8481d3b23a",
+    patch_args = ["-p1"],
+    patches = ["//patches:libcxx_apple_posix_memalign.patch"],
     remote = "https://chromium.googlesource.com/external/github.com/llvm/llvm-project/libcxx.git",
 )
 

@@ -69,9 +69,9 @@ jobs:
           fi
 
           gzip -dc "$archive" > /tmp/librusty_v8_mojave.a
-          nm -u /tmp/librusty_v8_mojave.a > /tmp/v8-symbols.txt
+          nm -u -o /tmp/librusty_v8_mojave.a > /tmp/v8-symbols.txt
 
-          if grep -q '_aligned_alloc' /tmp/v8-symbols.txt; then
+          if grep '_aligned_alloc' /tmp/v8-symbols.txt; then
             echo "FAIL: V8 still references aligned_alloc." >&2
             exit 1
           fi
@@ -118,8 +118,8 @@ jobs:
             otool -l "$binary" |
               grep -A3 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' || true
 
-            nm -u "$binary" > /tmp/final-symbols.txt
-            if grep -q '_aligned_alloc' /tmp/final-symbols.txt; then
+            nm -u -o "$binary" > /tmp/final-symbols.txt
+            if grep '_aligned_alloc' /tmp/final-symbols.txt; then
               echo "FAIL: $binary references aligned_alloc." >&2
               exit 1
             fi
