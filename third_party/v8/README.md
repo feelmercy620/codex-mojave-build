@@ -103,13 +103,12 @@ published copies.
 
 The staging helper also applies `--config=macos-x86_64-10-14` to
 `x86_64-apple-darwin` artifacts. The deployment target controls the minimum OS
-recorded in V8 objects and final binaries. The pinned libc++ source is also
-patched so Apple builds always use its `posix_memalign` path rather than the C11
-`aligned_alloc` path. The explicit source-level choice is necessary because the
-hermetic runtime transition does not reliably inherit ordinary Bazel `--copt` values.
-Together these changes avoid an `aligned_alloc` reference and let the resulting
-archive run on macOS Mojave. When building the release-pair target directly
-instead of through the helper, pass that config explicitly.
+recorded in V8 objects and final binaries. The custom libc++ target also carries
+`-mmacosx-version-min=10.14` directly because its hermetic runtime transition
+does not reliably inherit ordinary Bazel `--copt` values. That direct compiler
+flag makes libc++ use its pre-macOS-10.15 `posix_memalign` path instead of
+emitting an `aligned_alloc` reference. When building the release-pair target
+directly instead of through the helper, pass the config explicitly.
 
 MSVC is not part of the Bazel-produced matrix yet. The repository's current
 hermetic Windows C++ platform is `windows-gnullvm`/`x86_64-w64-windows-gnu`, so
