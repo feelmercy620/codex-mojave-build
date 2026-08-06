@@ -103,12 +103,14 @@ published copies.
 
 The staging helper also applies `--config=macos-x86_64-10-14` to
 `x86_64-apple-darwin` artifacts. The deployment target controls the minimum OS
-recorded in V8 objects and final binaries. The custom libc++ target also carries
-`-mmacosx-version-min=10.14` directly because its hermetic runtime transition
-does not reliably inherit ordinary Bazel `--copt` values. That direct compiler
-flag makes libc++ use its pre-macOS-10.15 `posix_memalign` path instead of
-emitting an `aligned_alloc` reference. When building the release-pair target
-directly instead of through the helper, pass the config explicitly.
+recorded in V8 objects and final binaries. The custom libc++ and libc++abi
+targets also carry `-mmacosx-version-min=10.14` directly because their hermetic
+runtime transition does not reliably inherit ordinary Bazel `--copt` values.
+The pinned libc++ allocation helper is patched to use `posix_memalign` when the
+compiler deployment target is older than macOS 10.15. This covers both libc++'s
+`new.cpp` and libc++abi's `fallback_malloc.cpp`, which includes the same helper.
+When building the release-pair target directly instead of through the helper,
+pass that config explicitly.
 
 MSVC is not part of the Bazel-produced matrix yet. The repository's current
 hermetic Windows C++ platform is `windows-gnullvm`/`x86_64-w64-windows-gnu`, so
