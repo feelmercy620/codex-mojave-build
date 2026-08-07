@@ -18,8 +18,8 @@ prebuilts.
 
 Current pinned versions:
 
-- Rust crate: `v8 = =149.2.0`
-- Embedded upstream V8 source for Bazel-produced release builds: `14.9.207.2`
+- Rust crate: `v8 = =150.4.0`
+- Embedded upstream V8 source for Bazel-produced release builds: `15.0.245.2`
 
 ## Updating to a new `v8` release
 
@@ -92,7 +92,7 @@ from upstream `rusty_v8` source. Those ABI-specific outputs cannot be produced
 by Codex's Bazel Windows GNU toolchain.
 
 The Bazel graph pins the same libc++, libc++abi, and llvm-libc source revisions
-used by `rusty_v8 v149.2.0`, compiles published artifact targets with
+used by `rusty_v8 v150.4.0`, compiles published artifact targets with
 `--config=rusty-v8-upstream-libcxx`, and folds the matching runtime objects into
 the final static archive so consumers can link it with the `v8` crate's default
 `use_custom_libcxx` feature. The config keeps the object files and the bundled
@@ -100,17 +100,6 @@ runtime on Chromium's `std::__Cr` ABI namespace instead of mixing those objects
 with the toolchain libc++ default namespace. Bazel consumers use these
 source-built targets directly; Cargo release and package builds use the
 published copies.
-
-The staging helper also applies `--config=macos-x86_64-10-14` to
-`x86_64-apple-darwin` artifacts. The deployment target controls the minimum OS
-recorded in V8 objects and final binaries. The custom libc++ and libc++abi
-targets also carry `-mmacosx-version-min=10.14` directly because their hermetic
-runtime transition does not reliably inherit ordinary Bazel `--copt` values.
-The pinned libc++ allocation helper is patched to use `posix_memalign` when the
-compiler deployment target is older than macOS 10.15. This covers both libc++'s
-`new.cpp` and libc++abi's `fallback_malloc.cpp`, which includes the same helper.
-When building the release-pair target directly instead of through the helper,
-pass that config explicitly.
 
 MSVC is not part of the Bazel-produced matrix yet. The repository's current
 hermetic Windows C++ platform is `windows-gnullvm`/`x86_64-w64-windows-gnu`, so
