@@ -2,9 +2,15 @@ name: Build Codex for macOS Mojave
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Git tag to create for the Mojave release
+        required: true
+        default: codex-v0.147.0-mojave.1
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -125,11 +131,44 @@ jobs:
             fi
           done
 
+      - name: Generate package checksum
+        shell: bash
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          shasum -a 256 codex-mojave-x86_64.tar.gz \
+            > codex-mojave-x86_64.tar.gz.sha256
+
       - name: Upload Mojave package
         uses: actions/upload-artifact@v7
         with:
           name: codex-mojave-x86_64
           path: |
             dist/codex-mojave-x86_64.tar.gz
+            dist/codex-mojave-x86_64.tar.gz.sha256
             dist/x86_64-apple-darwin/*
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          archive="dist/codex-mojave-x86_64.tar.gz"
+          checksum="dist/codex-mojave-x86_64.tar.gz.sha256"
+          title="Codex CLI 0.147.0 for macOS Mojave"
+          notes=$'Unofficial Codex CLI 0.147.0 build for Intel macOS.\n\n- Minimum target: macOS 10.14 Mojave\n- Architecture: x86_64\n- Includes the custom V8/libc++ Mojave compatibility patch'
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; replacing its assets."
+            gh release upload "$RELEASE_TAG" "$archive" "$checksum" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$archive" "$checksum" \
+              --target "$GITHUB_SHA" \
+              --title "$title" \
+              --notes "$notes"
+          fi
