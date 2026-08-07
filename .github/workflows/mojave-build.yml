@@ -1,0 +1,135 @@
+name: Build Codex for macOS Mojave
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Set up Bazel
+        uses: bazel-contrib/setup-bazel@0.19.0
+        with:
+          bazelisk-version: "1.28.1"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@e081816240890017053eacbb1bdf337761dc5582
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-apple-darwin
+
+      - name: Test V8 build helper
+        run: |
+          python3 -m unittest discover \
+            -s .github/scripts \
+            -p 'test_rusty_v8_bazel.py'
+
+      - name: Build Mojave-compatible V8
+        run: |
+          python3 .github/scripts/rusty_v8_bazel.py stage-release-pair \
+            --platform macos_amd64 \
+            --target x86_64-apple-darwin \
+            --compilation-mode opt \
+            --output-dir dist/x86_64-apple-darwin \
+            --bazel-config v8-target-x64 \
+            --bazel-config v8-release-compat
+
+      - name: Locate and verify V8 artifacts
+        id: v8
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="$(find dist/x86_64-apple-darwin \
+            -maxdepth 1 \
+            -name 'librusty_v8_release_*.a.gz' \
+            -print -quit)"
+
+          binding="$(find dist/x86_64-apple-darwin \
+            -maxdepth 1 \
+            -name 'src_binding_release_*.rs' \
+            -print -quit)"
+
+          if [[ -z "$archive" || -z "$binding" ]]; then
+            echo "V8 artifact or binding was not generated." >&2
+            exit 1
+          fi
+
+          gzip -dc "$archive" > /tmp/librusty_v8_mojave.a
+          nm -u -o /tmp/librusty_v8_mojave.a > /tmp/v8-symbols.txt
+
+          if grep '_aligned_alloc' /tmp/v8-symbols.txt; then
+            echo "FAIL: V8 still references aligned_alloc." >&2
+            exit 1
+          fi
+
+          echo "PASS: V8 has no aligned_alloc reference."
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "binding=$binding" >> "$GITHUB_OUTPUT"
+
+      - name: Run V8 smoke tests
+        working-directory: codex-rs
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "10.14"
+          RUSTY_V8_ARCHIVE: ${{ github.workspace }}/${{ steps.v8.outputs.archive }}
+          RUSTY_V8_SRC_BINDING_PATH: ${{ github.workspace }}/${{ steps.v8.outputs.binding }}
+        run: cargo test -p codex-v8-poc
+
+      - name: Free Bazel build space
+        run: bazel clean --expunge
+
+      - name: Build complete Codex package
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/codex-target
+          MACOSX_DEPLOYMENT_TARGET: "10.14"
+          RUSTY_V8_ARCHIVE: ${{ github.workspace }}/${{ steps.v8.outputs.archive }}
+          RUSTY_V8_SRC_BINDING_PATH: ${{ github.workspace }}/${{ steps.v8.outputs.binding }}
+        run: |
+          python3 scripts/build_codex_package.py \
+            --target x86_64-apple-darwin \
+            --cargo-profile release \
+            --package-dir dist/codex-mojave \
+            --archive-output dist/codex-mojave-x86_64.tar.gz \
+            --force
+
+      - name: Verify final executables
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for binary in \
+            dist/codex-mojave/bin/codex \
+            dist/codex-mojave/bin/codex-code-mode-host
+          do
+            echo "Deployment target for $binary:"
+            otool -l "$binary" |
+              grep -A3 -E 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX' || true
+
+            nm -u -o "$binary" > /tmp/final-symbols.txt
+            if grep '_aligned_alloc' /tmp/final-symbols.txt; then
+              echo "FAIL: $binary references aligned_alloc." >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload Mojave package
+        uses: actions/upload-artifact@v7
+        with:
+          name: codex-mojave-x86_64
+          path: |
+            dist/codex-mojave-x86_64.tar.gz
+            dist/x86_64-apple-darwin/*
+          if-no-files-found: error
