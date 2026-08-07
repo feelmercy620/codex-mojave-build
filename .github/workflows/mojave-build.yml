@@ -2,12 +2,6 @@ name: Build Codex for macOS Mojave
 
 on:
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Git tag to create for the Mojave release
-        required: true
-        default: codex-v0.147.0-mojave.1
-        type: string
 
 permissions:
   contents: write
@@ -154,7 +148,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: codex-v0.147.0-mojave.${{ github.run_number }}
         run: |
           set -euo pipefail
 
