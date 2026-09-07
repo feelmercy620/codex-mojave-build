@@ -28,14 +28,6 @@ common --incompatible_strict_action_env
 common:linux --test_env=PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 common:macos --test_env=PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 
-# Build x86_64 Darwin artifacts that can run on macOS Mojave. This must be a
-# compiler and linker flag (instead of only an environment variable) so the
-# hermetic LLVM actions see the deployment target. The custom libc++ runtime
-# repeats the compiler flag in its own target because runtime transitions do
-# not reliably inherit --copt.
-common:macos-x86_64-10-14 --copt=-mmacosx-version-min=10.14
-common:macos-x86_64-10-14 --linkopt=-mmacosx-version-min=10.14
-
 # Pass through some env vars Windows needs to use powershell?
 common:windows --test_env=SYSTEMROOT
 common:windows --test_env=COMSPEC
@@ -102,10 +94,6 @@ common:ci --verbose_failures
 common:ci --build_metadata=REPO_URL=https://github.com/openai/codex.git
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=VISIBILITY=PUBLIC
-# rules_rust derives debug level from Bazel toolchain/compilation-mode settings,
-# not Cargo profiles. Keep CI Rust actions explicit and lean.
-common:ci --@rules_rust//rust/settings:extra_rustc_flag=-Cdebuginfo=0
-common:ci --@rules_rust//rust/settings:extra_exec_rustc_flag=-Cdebuginfo=0
 
 # Disable disk cache in CI since we have a remote one and aren't using persistent workers.
 common:ci --disk_cache=
