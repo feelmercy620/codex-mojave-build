@@ -72,20 +72,35 @@ class RustyV8BazelTest(unittest.TestCase):
             with patch.object(rusty_v8_bazel, "MODULE_BAZEL", module_bazel):
                 self.assertEqual("146.4.0", rusty_v8_bazel.command_version(None))
 
-    def test_artifact_bazel_configs_always_enable_upstream_libcxx(self) -> None:
+    def test_artifact_bazel_configs_include_target_compatibility(self) -> None:
         self.assertEqual(
             ["rusty-v8-upstream-libcxx"],
-            rusty_v8_bazel.artifact_bazel_configs(),
+            rusty_v8_bazel.artifact_bazel_configs("aarch64-apple-darwin"),
         )
         self.assertEqual(
-            ["rusty-v8-upstream-libcxx", "v8-release-compat"],
-            rusty_v8_bazel.artifact_bazel_configs(["v8-release-compat"]),
+            ["rusty-v8-upstream-libcxx", "macos-x86_64-10-14"],
+            rusty_v8_bazel.artifact_bazel_configs("x86_64-apple-darwin"),
         )
         self.assertEqual(
-            ["rusty-v8-upstream-libcxx", "v8-release-compat"],
+            [
+                "rusty-v8-upstream-libcxx",
+                "macos-x86_64-10-14",
+                "v8-release-compat",
+            ],
             rusty_v8_bazel.artifact_bazel_configs(
+                "x86_64-apple-darwin",
                 ["rusty-v8-upstream-libcxx", "v8-release-compat"]
             ),
+        )
+
+        bazelrc = (rusty_v8_bazel.ROOT / ".bazelrc").read_text()
+        self.assertIn(
+            "common:macos-x86_64-10-14 --copt=-mmacosx-version-min=10.14",
+            bazelrc,
+        )
+        self.assertIn(
+            "common:macos-x86_64-10-14 --linkopt=-mmacosx-version-min=10.14",
+            bazelrc,
         )
 
     def test_bazel_commands_use_shared_buildbuddy_remote_config_library(self) -> None:
